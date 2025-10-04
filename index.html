@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web-based Colorimeter (Beer-Lambert Law)</title>
+    
+    <style>
+        /* --- General Styling --- */
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
+
+        :root {
+            --primary-color: #0056b3;
+            --secondary-color: #007bff;
+            --success-color: #28a745;
+            --danger-color: #c62828;
+            --light-gray: #f0f2f5;
+            --white: #ffffff;
+            --dark-text: #333;
+            --border-color: #dee2e6;
+        }
+
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: var(--light-gray);
+            color: var(--dark-text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        /* --- Main Container --- */
+        .container {
+            background-color: var(--white);
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 800px;
+            text-align: center;
+        }
+
+        header h1 {
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        header p {
+            color: #666;
+            margin-top: 0;
+            margin-bottom: 25px;
+        }
+        
+        section {
+            margin-bottom: 25px;
+        }
+
+        h2 {
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--light-gray);
+            padding-bottom: 10px;
+            margin-top: 30px;
+        }
+
+        /* --- Camera Section --- */
+        .camera-container {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 15px auto;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: #000;
+        }
+
+        #webcam {
+            width: 100%;
+            height: auto;
+            display: block;
+            transform: scale(1.001); /* Fix for small gaps */
+        }
+
+        .center-marker {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 0, 0, 0.9);
+            border-radius: 50%;
+            box-shadow: 0 0 8px rgba(255, 0, 0, 0.8), inset 0 0 5px rgba(255, 255, 255, 0.5);
+        }
+
+        .error-message {
+            background-color: #ffebee;
+            color: var(--danger-color);
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 1px solid var(--danger-color);
+        }
+
+        /* --- Controls & Buttons --- */
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            font-family: 'Sarabun', sans-serif;
+            padding: 12px 25px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            background-color: var(--secondary-color);
+            color: white;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-weight: 700;
+        }
+
+        .btn:hover:not(:disabled) {
+            background-color: var(--primary-color);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+        
+        .btn:active:not(:disabled) {
+             transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .btn.download-btn {
+            background-color: var(--success-color);
+        }
+
+        .btn.download-btn:hover:not(:disabled) {
+            background-color: #218838;
+        }
+        
+        .btn.captured {
+             background-color: #5a6268;
+        }
+
+        /* --- Results Table & Summary --- */
+        .results-table-container {
+            overflow-x: auto; /* For small screens */
+        }
+
+        #results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        #results-table th, #results-table td {
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        #results-table thead {
+            background-color: var(--primary-color);
+            color: white;
+            font-weight: 700;
+        }
+
+        #results-table tbody tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        
+        #results-table td:first-child, #results-table td:nth-child(2) {
+            font-weight: 700;
+            color: #495057;
+        }
+
+        .summary-section {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d7ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        #decolor-result {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #d9534f;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+    <main class="container">
+        <header>
+            <h1>เครื่องวัดสี (Beer-Lambert Law) 🔬</h1>
+            <p>เว็บแอปสำหรับวัดค่าการดูดกลืนแสงของสารละลายตามกฎของเบียร์-แลมเบิร์ต</p>
+        </header>
+        
+        <section class="camera-section">
+            <h2>1. เตรียมการวัด</h2>
+            <div class="camera-container">
+                <video id="webcam" autoplay playsinline></video>
+                <div class="center-marker"></div>
+                <canvas id="canvas" style="display:none;"></canvas>
+            </div>
+            <div id="error-message" class="error-message" style="display:none;">
+                ไม่สามารถเข้าถึงกล้องได้ โปรดตรวจสอบการอนุญาตและลองรีเฟรชหน้าอีกครั้ง
+            </div>
+        </section>
+
+        <section class="controls-section">
+            <h2>2. ถ่ายภาพเพื่อวัดค่าสี</h2>
+            <div class="controls">
+                <button id="capture-blank" class="btn">น้ำใส (Blank)</button>
+                <button id="capture-initial" class="btn" disabled>ก่อนผสม (Initial)</button>
+                <button id="capture-final" class="btn" disabled>หลังผสม (Final)</button>
+            </div>
+        </section>
+
+        <section class="results-section">
+            <h2>3. ผลการวิเคราะห์</h2>
+            <div class="results-table-container">
+                <table id="results-table">
+                    <thead>
+                        <tr>
+                            <th>ค่าที่วัด</th>
+                            <th>ประเภท</th>
+                            <th>R</th>
+                            <th>G</th>
+                            <th>B</th>
+                            <th>ค่าเฉลี่ย (Avg)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+            
+            <div id="summary" class="summary-section" style="display:none;">
+                 <h3>สรุปผลการลดสี (% Decolorization)</h3>
+                 <p id="decolor-result">กำลังรอข้อมูล...</p>
+            </div>
+        </section>
+        
+        <footer>
+            <button id="download-csv" class="btn download-btn" disabled>ดาวน์โหลดผลลัพธ์ (CSV)</button>
+        </footer>
+    </main>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- DOM Element References ---
+        const webcamElement = document.getElementById('webcam');
+        const canvasElement = document.getElementById('canvas');
+        const errorMessage = document.getElementById('error-message');
+        const captureBlankBtn = document.getElementById('capture-blank');
+        const captureInitialBtn = document.getElementById('capture-initial');
+        const captureFinalBtn = document.getElementById('capture-final');
+        const downloadCsvBtn = document.getElementById('download-csv');
+        const resultsTableBody = document.querySelector('#results-table tbody');
+        const summarySection = document.getElementById('summary');
+        const decolorResult = document.getElementById('decolor-result');
+
+        // --- Data Storage ---
+        let capturedData = {
+            blank: null,
+            initial: null,
+            final: null
+        };
+
+        // --- 1. Webcam Setup ---
+        async function setupWebcam() {
+            try {
+                // ขออนุญาตใช้กล้องหลังของมือถือเป็นหลัก (environment)
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: 'environment' }
+                });
+                webcamElement.srcObject = stream;
+                webcamElement.addEventListener('loadedmetadata', () => {
+                    canvasElement.width = webcamElement.videoWidth;
+                    canvasElement.height = webcamElement.videoHeight;
+                });
+            } catch (err) {
+                console.error("Error accessing webcam: ", err);
+                errorMessage.style.display = 'block';
+                // ปิดปุ่มทั้งหมดหากเปิดกล้องไม่ได้
+                captureBlankBtn.disabled = true;
+            }
+        }
+
+        // --- 2. Image Capture and Pixel Data Extraction ---
+        function captureAndProcess(type) {
+            const context = canvasElement.getContext('2d');
+            context.drawImage(webcamElement, 0, 0, canvasElement.width, canvasElement.height);
+
+            const centerX = Math.floor(canvasElement.width / 2);
+            const centerY = Math.floor(canvasElement.height / 2);
+
+            // ดึงข้อมูลสีจาก pixel ตรงกลาง (1x1 pixel)
+            const pixelData = context.getImageData(centerX, centerY, 1, 1).data;
+            
+            const r = pixelData[0];
+            const g = pixelData[1];
+            const b = pixelData[2];
+            const avg = (r + g + b) / 3;
+
+            capturedData[type] = { r, g, b, avg: parseFloat(avg.toFixed(2)) };
+            console.log(`Captured ${type}:`, capturedData[type]);
+            
+            updateUI(type);
+        }
+
+        // --- 3. UI Update and Calculations ---
+        function updateUI(capturedType) {
+            // อัปเดตสถานะปุ่ม
+            switch(capturedType) {
+                case 'blank':
+                    captureInitialBtn.disabled = false;
+                    captureBlankBtn.classList.add('captured');
+                    captureBlankBtn.textContent = '✔️ น้ำใส (Blank)';
+                    break;
+                case 'initial':
+                    captureFinalBtn.disabled = false;
+                    captureInitialBtn.classList.add('captured');
+                    captureInitialBtn.textContent = '✔️ ก่อนผสม (Initial)';
+                    break;
+                case 'final':
+                    captureFinalBtn.classList.add('captured');
+                    captureFinalBtn.textContent = '✔️ หลังผสม (Final)';
+                    downloadCsvBtn.disabled = false;
+                    break;
+            }
+            
+            // สร้างตารางผลลัพธ์ใหม่ทั้งหมด
+            renderResultsTable();
+        }
+
+        function renderResultsTable() {
+            resultsTableBody.innerHTML = '';
+            
+            // แสดงค่า Intensity (ความเข้มแสง)
+            if (capturedData.blank) addRowToTable('Intensity (I₀)', 'Blank', capturedData.blank);
+            if (capturedData.initial) addRowToTable('Intensity (I)', 'Initial', capturedData.initial);
+            if (capturedData.final) addRowToTable('Intensity (I)', 'Final', capturedData.final);
+
+            // คำนวณและแสดงค่า Absorbance
+            if (capturedData.blank && capturedData.initial) {
+                const initialAbsorbance = calculateAbsorbance(capturedData.initial, capturedData.blank);
+                addRowToTable('Absorbance', 'Initial', initialAbsorbance);
+
+                if (capturedData.final) {
+                    const finalAbsorbance = calculateAbsorbance(capturedData.final, capturedData.blank);
+                    addRowToTable('Absorbance', 'Final', finalAbsorbance);
+
+                    // คำนวณและแสดง % การลดสี
+                    const decolorization = calculateDecolorization(initialAbsorbance, finalAbsorbance);
+                    addRowToTable('% Decolorization', '', decolorization, true);
+                    
+                    // แสดงผลสรุป
+                    summarySection.style.display = 'block';
+                    decolorResult.innerHTML = `
+                        R: ${decolorization.r.toFixed(2)}%<br>
+                        G: ${decolorization.g.toFixed(2)}%<br>
+                        B: ${decolorization.b.toFixed(2)}%<br>
+                        <strong>เฉลี่ย: ${decolorization.avg.toFixed(2)}%</strong>
+                    `;
+                }
+            }
+        }
+
+        function addRowToTable(metric, type, data, isPercent = false) {
+            const row = resultsTableBody.insertRow();
+            const suffix = isPercent ? '%' : '';
+            const precision = (metric === 'Intensity (I₀)' || metric === 'Intensity (I)') ? 0 : 3;
+            row.innerHTML = `
+                <td>${metric}</td>
+                <td>${type}</td>
+                <td>${data.r.toFixed(precision)}${suffix}</td>
+                <td>${data.g.toFixed(precision)}${suffix}</td>
+                <td>${data.b.toFixed(precision)}${suffix}</td>
+                <td>${data.avg.toFixed(precision)}${suffix}</td>
+            `;
+        }
+
+        // --- 4. Core Scientific Calculations ---
+
+        /**
+         * คำนวณค่าการดูดกลืนแสง (Absorbance) ตามกฎของเบียร์-แลมเบิร์ต
+         * Beer-Lambert Law: A = -log10(I / I₀)
+         * @param {object} sampleIntensity - ค่า Intensity ของตัวอย่าง (I) {r, g, b, avg}
+         * @param {object} blankIntensity - ค่า Intensity ของตัวอ้างอิง (I₀) {r, g, b, avg}
+         * @returns {object} ค่า Absorbance (A) {r, g, b, avg}
+         */
+        function calculateAbsorbance(sampleIntensity, blankIntensity) {
+            const I = sampleIntensity;
+            const I_0 = blankIntensity;
+
+            // ฟังก์ชันป้องกันค่า Intensity เป็น 0 หรือน้อยกว่า เพื่อหลีกเลี่ยงการหารด้วยศูนย์
+            const safe = (val) => Math.max(1, val); 
+
+            return {
+                r: -Math.log10(safe(I.r) / safe(I_0.r)),
+                g: -Math.log10(safe(I.g) / safe(I_0.g)),
+                b: -Math.log10(safe(I.b) / safe(I_0.b)),
+                avg: -Math.log10(safe(I.avg) / safe(I_0.avg))
+            };
+        }
+
+        /**
+         * คำนวณเปอร์เซ็นต์การลดลงของสี
+         * Formula: %Decolorization = ((Abs_initial - Abs_final) / Abs_initial) * 100
+         * @param {object} initialAbs - ค่า Absorbance เริ่มต้น
+         * @param {object} finalAbs - ค่า Absorbance สุดท้าย
+         * @returns {object} เปอร์เซ็นต์การลดสี {r, g, b, avg}
+         */
+        function calculateDecolorization(initialAbs, finalAbs) {
+            const calcPercent = (initial, final) => {
+                if (initial <= 0) return 0; // ป้องกันการหารด้วยศูนย์
+                const percentage = ((initial - final) / initial) * 100;
+                return Math.max(0, percentage); // ผลลัพธ์ไม่ควรติดลบ
+            };
+
+            return {
+                r: calcPercent(initialAbs.r, finalAbs.r),
+                g: calcPercent(initialAbs.g, finalAbs.g),
+                b: calcPercent(initialAbs.b, finalAbs.b),
+                avg: calcPercent(initialAbs.avg, finalAbs.avg)
+            };
+        }
+        
+        // --- 5. CSV Export ---
+        function downloadCSV() {
+            const headers = ['Metric', 'Type', 'R', 'G', 'B', 'Average'];
+            const rows = [];
+            
+            // ดึงข้อมูลจากตาราง HTML ที่แสดงผล
+            document.querySelectorAll('#results-table tbody tr').forEach(tr => {
+                const rowData = [];
+                tr.querySelectorAll('td').forEach(td => {
+                    // ครอบข้อความด้วย "" เพื่อให้จัดการกับ comma ได้
+                    rowData.push(`"${td.innerText}"`);
+                });
+                rows.push(rowData.join(','));
+            });
+
+            let csvContent = "data:text/csv;charset=utf-8," 
+                + headers.join(",") + "\n" 
+                + rows.join("\n");
+            
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "colorimeter_results.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // --- 6. Event Listeners ---
+        captureBlankBtn.addEventListener('click', () => captureAndProcess('blank'));
+        captureInitialBtn.addEventListener('click', () => captureAndProcess('initial'));
+        captureFinalBtn.addEventListener('click', () => captureAndProcess('final'));
+        downloadCsvBtn.addEventListener('click', downloadCSV);
+        
+        // --- Initialize ---
+        setupWebcam();
+    });
+    </script>
+
+</body>
+</html>
